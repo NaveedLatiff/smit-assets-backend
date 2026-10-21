@@ -14,7 +14,6 @@ export const createAssetSchema = z.object({
   condition: z.nativeEnum(AssetCondition).optional().default(AssetCondition.NEW),
   location: z.object({
     campusId: z.string({ required_error: 'Campus ID is required' }).regex(objectIdRegex, 'Invalid Campus ObjectId'),
-    buildingId: z.string({ required_error: 'Building ID is required' }).regex(objectIdRegex, 'Invalid Building ObjectId'),
     roomId: z.string({ required_error: 'Room ID is required' }).regex(objectIdRegex, 'Invalid Room ObjectId'),
   }),
   assignedTo: z
@@ -24,16 +23,7 @@ export const createAssetSchema = z.object({
     })
     .optional(),
   specs: z.record(z.any()).optional().default({}),
-  financials: z
-    .object({
-      purchaseDate: z.string().or(z.date()).optional(),
-      purchaseCost: z.number().min(0).optional(),
-      currency: z.string().optional().default('PKR'),
-      vendor: z.string().optional(),
-      invoiceNumber: z.string().optional(),
-      warrantyExpiryDate: z.string().or(z.date()).optional(),
-    })
-    .optional(),
+  organization: z.string().optional().default('Saylani Welfare Trust'),
   notes: z.string().optional(),
   images: z.array(z.string()).optional(),
 });

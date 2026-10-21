@@ -8,6 +8,7 @@
     "test:db": "tsx src/scripts/testConnection.ts",
     "test:auth": "tsx src/scripts/testAuth.ts",
     "test:assets": "tsx src/scripts/testAssets.ts",
+    "seed": "tsx src/scripts/seedData.ts",
     "build": "rimraf dist && tsc",
     "start": "node dist/server.js",
     "lint": "tsc --noEmit"

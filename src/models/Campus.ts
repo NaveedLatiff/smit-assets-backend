@@ -59,9 +59,9 @@ const CampusSchema = new Schema<ICampus>(
   }
 );
 
-// Virtual relationship to buildings
-CampusSchema.virtual('buildings', {
-  ref: 'Building',
+// Virtual relationship to child rooms
+CampusSchema.virtual('rooms', {
+  ref: 'Room',
   localField: '_id',
   foreignField: 'campusId',
 });

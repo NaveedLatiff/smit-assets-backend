@@ -3,7 +3,6 @@ import { RoomType } from '../constants/enums';
 
 export interface IRoom extends Document {
   campusId: Types.ObjectId;
-  buildingId: Types.ObjectId;
   name: string;
   roomNumber: string;
   floor: number;
@@ -20,12 +19,6 @@ const RoomSchema = new Schema<IRoom>(
       type: Schema.Types.ObjectId,
       ref: 'Campus',
       required: [true, 'Campus reference is required'],
-      index: true,
-    },
-    buildingId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Building',
-      required: [true, 'Building reference is required'],
       index: true,
     },
     name: {
@@ -66,8 +59,8 @@ const RoomSchema = new Schema<IRoom>(
   }
 );
 
-// Unique roomNumber within a building
-RoomSchema.index({ buildingId: 1, roomNumber: 1 }, { unique: true });
+// Unique roomNumber within a campus
+RoomSchema.index({ campusId: 1, roomNumber: 1 }, { unique: true });
 RoomSchema.index({ campusId: 1, roomType: 1 });
 
 export const Room: Model<IRoom> = mongoose.model<IRoom>('Room', RoomSchema);

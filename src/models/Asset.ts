@@ -4,7 +4,6 @@ import { generateDefaultAssetTag, generateOpaqueQRToken } from '../utils/tokenGe
 
 export interface IAssetLocation {
   campusId: Types.ObjectId;
-  buildingId: Types.ObjectId;
   roomId: Types.ObjectId;
 }
 
@@ -14,19 +13,11 @@ export interface IAssetAssignment {
   remarks?: string;
 }
 
-export interface IAssetFinancials {
-  purchaseDate?: Date;
-  purchaseCost?: number;
-  currency?: string;
-  vendor?: string;
-  invoiceNumber?: string;
-  warrantyExpiryDate?: Date;
-}
-
 export interface IAsset extends Document {
-  assetTag: string; // Unique human-readable Asset ID (e.g. AST-2026-A1B2C3)
+  assetTag: string; // Unique human-readable Asset ID (e.g. SMIT-LAP-000001)
   qrToken: string;  // Opaque, cryptographically secure random token for QR scanning
   name: string;
+  organization: string; // Owner organization: defaults to "Saylani Welfare Trust"
   categoryId: Types.ObjectId;
   brand?: string;
   modelNumber?: string;
@@ -36,7 +27,6 @@ export interface IAsset extends Document {
   location: IAssetLocation;
   assignedTo?: IAssetAssignment;
   specs: Record<string, any>; // Flexible category-specific specifications (e.g. RAM, CPU, MAC)
-  financials?: IAssetFinancials;
   images?: string[];
   notes?: string;
   isDeleted: boolean;
@@ -54,12 +44,6 @@ const AssetLocationSchema = new Schema<IAssetLocation>(
       type: Schema.Types.ObjectId,
       ref: 'Campus',
       required: [true, 'Campus reference is required for asset location'],
-      index: true,
-    },
-    buildingId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Building',
-      required: [true, 'Building reference is required for asset location'],
       index: true,
     },
     roomId: {
@@ -90,18 +74,6 @@ const AssetAssignmentSchema = new Schema<IAssetAssignment>(
   { _id: false }
 );
 
-const AssetFinancialsSchema = new Schema<IAssetFinancials>(
-  {
-    purchaseDate: { type: Date },
-    purchaseCost: { type: Number, min: 0 },
-    currency: { type: String, default: 'PKR', uppercase: true, trim: true },
-    vendor: { type: String, trim: true },
-    invoiceNumber: { type: String, trim: true },
-    warrantyExpiryDate: { type: Date },
-  },
-  { _id: false }
-);
-
 const AssetSchema = new Schema<IAsset>(
   {
     assetTag: {
@@ -119,6 +91,11 @@ const AssetSchema = new Schema<IAsset>(
     name: {
       type: String,
       required: [true, 'Asset name is required'],
+      trim: true,
+    },
+    organization: {
+      type: String,
+      default: 'Saylani Welfare Trust',
       trim: true,
     },
     categoryId: {
@@ -164,9 +141,6 @@ const AssetSchema = new Schema<IAsset>(
     specs: {
       type: Schema.Types.Mixed,
       default: {},
-    },
-    financials: {
-      type: AssetFinancialsSchema,
     },
     images: [{ type: String }],
     notes: {

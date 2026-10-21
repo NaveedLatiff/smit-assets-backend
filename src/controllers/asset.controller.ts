@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 import { Asset, IAsset } from '../models/Asset';
 import { AssetCategory } from '../models/AssetCategory';
 import { Campus } from '../models/Campus';
-import { Building } from '../models/Building';
 import { Room } from '../models/Room';
 import { AssetHistory, AssetHistoryAction } from '../models/AssetHistory';
 import { getNextSequentialTag } from '../models/Counter';
@@ -58,28 +57,20 @@ export const createAsset = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // 3. Validate Location (Campus, Building, Room)
-    const [campus, building, room] = await Promise.all([
+    // 3. Validate Location (Campus and Room)
+    const [campus, room] = await Promise.all([
       Campus.findOne({ _id: data.location.campusId, isActive: true }),
-      Building.findOne({ _id: data.location.buildingId, campusId: data.location.campusId, isActive: true }),
-      Room.findOne({ _id: data.location.roomId, buildingId: data.location.buildingId, isActive: true }),
+      Room.findOne({ _id: data.location.roomId, isActive: true }),
     ]);
 
     if (!campus) {
       res.status(400).json({ success: false, message: `Campus '${data.location.campusId}' not found.` });
       return;
     }
-    if (!building) {
-      res.status(400).json({
-        success: false,
-        message: `Building '${data.location.buildingId}' not found or does not belong to campus.`,
-      });
-      return;
-    }
     if (!room) {
       res.status(400).json({
         success: false,
-        message: `Room '${data.location.roomId}' not found or does not belong to building.`,
+        message: `Room '${data.location.roomId}' not found.`,
       });
       return;
     }
@@ -145,7 +136,6 @@ export const createAsset = async (req: Request, res: Response, next: NextFunctio
     const populatedAsset = await Asset.findById(newAsset._id)
       .populate('categoryId', 'name code tagPrefix')
       .populate('location.campusId', 'name code city')
-      .populate('location.buildingId', 'name code')
       .populate('location.roomId', 'name roomNumber roomType')
       .populate('assignedTo.userId', 'name email department');
 
@@ -229,7 +219,6 @@ export const getAssets = async (req: Request, res: Response, next: NextFunction)
     const assets = await Asset.find(filter)
       .populate('categoryId', 'name code tagPrefix')
       .populate('location.campusId', 'name code city')
-      .populate('location.buildingId', 'name code')
       .populate('location.roomId', 'name roomNumber roomType')
       .populate('assignedTo.userId', 'name email department')
       .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
@@ -269,7 +258,6 @@ export const getAssetById = async (req: Request, res: Response, next: NextFuncti
     const asset = await Asset.findById(id)
       .populate('categoryId', 'name code tagPrefix specDefinitions')
       .populate('location.campusId', 'name code city address')
-      .populate('location.buildingId', 'name code totalFloors')
       .populate('location.roomId', 'name roomNumber roomType floor')
       .populate('assignedTo.userId', 'name email department designation phone')
       .populate('createdBy', 'name email')
@@ -429,7 +417,6 @@ export const updateAsset = async (req: Request, res: Response, next: NextFunctio
     const updatedAsset = await Asset.findById(asset._id)
       .populate('categoryId', 'name code tagPrefix')
       .populate('location.campusId', 'name code city')
-      .populate('location.buildingId', 'name code')
       .populate('location.roomId', 'name roomNumber roomType')
       .populate('assignedTo.userId', 'name email department');
 
@@ -517,7 +504,6 @@ export const resolveQRToken = async (req: Request, res: Response, next: NextFunc
     const asset = await Asset.findOne({ qrToken: token, isDeleted: false })
       .populate('categoryId', 'name code tagPrefix')
       .populate('location.campusId', 'name code city')
-      .populate('location.buildingId', 'name code')
       .populate('location.roomId', 'name roomNumber roomType')
       .populate('assignedTo.userId', 'name email department');
 
@@ -572,7 +558,6 @@ export const resolveQRToken = async (req: Request, res: Response, next: NextFunc
         condition: asset.condition,
         location: {
           campus: (asset.location.campusId as any)?.name || 'N/A',
-          building: (asset.location.buildingId as any)?.name || 'N/A',
           room: (asset.location.roomId as any)?.name || 'N/A',
         },
       },

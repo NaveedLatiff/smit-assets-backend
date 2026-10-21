@@ -1,7 +1,6 @@
 import mongoose from 'mongoose';
 import { connectDB } from '../config/db';
 import { Campus } from '../models/Campus';
-import { Building } from '../models/Building';
 import { Room } from '../models/Room';
 import { AssetCategory } from '../models/AssetCategory';
 import { Asset } from '../models/Asset';
@@ -24,17 +23,10 @@ async function testAssetMaster() {
       { upsert: true, new: true }
     );
 
-    const building = await Building.findOneAndUpdate(
-      { campusId: campus._id, code: 'AST_BLD' },
-      { campusId: campus._id, name: 'Tech Building', code: 'AST_BLD', isActive: true },
-      { upsert: true, new: true }
-    );
-
     const room = await Room.findOneAndUpdate(
-      { buildingId: building._id, roomNumber: 'LAB-101' },
+      { campusId: campus._id, roomNumber: 'LAB-101' },
       {
         campusId: campus._id,
-        buildingId: building._id,
         name: 'Computer Lab 1',
         roomNumber: 'LAB-101',
         floor: 1,
@@ -61,7 +53,6 @@ async function testAssetMaster() {
     );
 
     console.log(`   ✓ Campus:   ${campus.name} (${campus.code})`);
-    console.log(`   ✓ Building: ${building.name} (${building.code})`);
     console.log(`   ✓ Room:     ${room.name} (${room.roomNumber})`);
     console.log(`   ✓ Category: ${category.name} [Prefix: ${category.tagPrefix}]`);
 
@@ -97,18 +88,12 @@ async function testAssetMaster() {
       condition: AssetCondition.NEW,
       location: {
         campusId: campus._id,
-        buildingId: building._id,
         roomId: room._id,
       },
       specs: {
         ram_gb: 16,
         cpu: 'Intel Core i7-1185G7',
         mac_address: '00:1A:2B:3C:4D:5E',
-      },
-      financials: {
-        purchaseCost: 185000,
-        vendor: 'Dell Official Partner',
-        invoiceNumber: 'INV-2026-0045',
       },
     });
 
@@ -167,7 +152,6 @@ async function testAssetMaster() {
     await Asset.deleteMany({ _id: asset._id });
     await AssetHistory.deleteMany({ assetId: asset._id });
     await Room.deleteOne({ _id: room._id });
-    await Building.deleteOne({ _id: building._id });
     await Campus.deleteOne({ _id: campus._id });
     await AssetCategory.deleteOne({ _id: category._id });
     console.log('   ✓ Cleanup complete.');
