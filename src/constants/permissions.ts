@@ -39,7 +39,22 @@ export enum Permission {
  */
 export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
   SUPER_ADMIN: Object.values(Permission),
-  CAMPUS_ADMIN: [
+  INVENTORY_ADMIN: [
+    Permission.USERS_READ,
+    Permission.LOCATIONS_READ,
+    Permission.LOCATIONS_MANAGE,
+    Permission.CATEGORIES_MANAGE,
+    Permission.ASSETS_CREATE,
+    Permission.ASSETS_READ,
+    Permission.ASSETS_UPDATE,
+    Permission.ASSETS_DELETE,
+    Permission.ASSETS_ASSIGN,
+    Permission.ASSETS_AUDIT,
+    Permission.ASSETS_EXPORT,
+    Permission.REPORTS_VIEW,
+    Permission.AUDIT_LOGS_VIEW,
+  ],
+  CAMPUS_MANAGER: [
     Permission.USERS_READ,
     Permission.LOCATIONS_MANAGE,
     Permission.LOCATIONS_READ,
@@ -57,7 +72,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.TICKETS_RESOLVE,
     Permission.REPORTS_VIEW,
   ],
-  IT_TECHNICIAN: [
+  CAMPUS_IT_TECHNICIAN: [
     Permission.LOCATIONS_READ,
     Permission.ASSETS_READ,
     Permission.ASSETS_UPDATE,
@@ -67,20 +82,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.TICKETS_UPDATE,
     Permission.TICKETS_RESOLVE,
   ],
-  INVENTORY_AUDITOR: [
+  EMPLOYEE: [
     Permission.LOCATIONS_READ,
     Permission.ASSETS_READ,
-    Permission.ASSETS_AUDIT,
-    Permission.ASSETS_EXPORT,
-    Permission.REPORTS_VIEW,
-  ],
-  FACULTY_STAFF: [
-    Permission.LOCATIONS_READ,
-    Permission.ASSETS_READ,
-    Permission.TICKETS_CREATE,
-    Permission.TICKETS_READ,
-  ],
-  STUDENT_USER: [
     Permission.TICKETS_CREATE,
     Permission.TICKETS_READ,
   ],

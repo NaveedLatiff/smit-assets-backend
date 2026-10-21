@@ -3,13 +3,18 @@ import mongoose from 'mongoose';
 import { createApp } from './app';
 import { connectDB } from './config/db';
 import { env } from './config/env';
+import { ensureDefaultRoles } from './services/role.service';
 
 const startServer = async () => {
   try {
     // 1. Establish MongoDB connection
     await connectDB();
 
-    // 2. Initialize Express application
+    // 2. Ensure initial system roles exist in DB
+    await ensureDefaultRoles();
+    console.log('🛡️ System roles verified & seeded');
+
+    // 3. Initialize Express application
     const app = createApp();
     const server = http.createServer(app);
 

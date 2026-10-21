@@ -1,4 +1,5 @@
 import mongoose, { Document, Model, Schema, Types } from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { Permission } from '../constants/permissions';
 
 export interface IUser extends Document {
@@ -16,6 +17,7 @@ export interface IUser extends Document {
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -86,10 +88,30 @@ const UserSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
+    toJSON: {
+      virtuals: true,
+      transform: (_doc, ret: any) => {
+        delete ret.passwordHash;
+        return ret;
+      },
+    },
+    toObject: {
+      virtuals: true,
+      transform: (_doc, ret: any) => {
+        delete ret.passwordHash;
+        return ret;
+      },
+    },
   }
 );
+
+// Method to verify password
+UserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+  if (!this.passwordHash) {
+    return false;
+  }
+  return bcrypt.compare(candidatePassword, this.passwordHash);
+};
 
 // Helpful index for querying campus users
 UserSchema.index({ campusScope: 1, isActive: 1 });

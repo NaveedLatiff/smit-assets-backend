@@ -124,12 +124,48 @@ Sample Response:
 
 ---
 
+## 🔐 Authentication & Role-Based Access Control (RBAC)
+
+### Supported System Roles
+- **`SUPER_ADMIN`**: Full unrestricted access across all campuses and data.
+- **`INVENTORY_ADMIN`**: Global/cross-campus inventory manager managing asset categories, lifecycle, and audits.
+- **`CAMPUS_MANAGER`**: Campus-level administrator; data scoped specifically to assigned `campusScope` campuses.
+- **`CAMPUS_IT_TECHNICIAN`**: Campus-scoped support technician handling repairs, maintenance, and asset status updates.
+- **`EMPLOYEE`**: Standard staff member filing tickets and requesting assets.
+
+### Available Auth Endpoints
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | Register new user with bcrypt password hashing & campus scoping |
+| `POST` | `/api/auth/login` | Public | Authenticate user & return signed JWT token |
+| `GET` | `/api/auth/me` | Bearer Token | Return authenticated profile with role & populated campus scope |
+| `GET` | `/api/auth/test-campus-access/:campusId` | Bearer Token | Verifies campus scoping boundary enforcement |
+| `GET` | `/api/auth/admin-only` | Bearer Token | Demonstrates role check (`SUPER_ADMIN` / `INVENTORY_ADMIN` only) |
+
+---
+
+---
+
+## 📬 Postman & Thunder Client Testing
+
+A complete Postman Collection and Environment are provided in the [`postman/`](file:///c:/Users/navee/Documents/smit-assets-backend/postman/) directory:
+- [SMIT_Asset_Management.postman_collection.json](file:///c:/Users/navee/Documents/smit-assets-backend/postman/SMIT_Asset_Management.postman_collection.json)
+- [SMIT_Asset_Management.postman_environment.json](file:///c:/Users/navee/Documents/smit-assets-backend/postman/SMIT_Asset_Management.postman_environment.json)
+
+### How to Import & Use:
+1. Open **Postman** (or VS Code **Thunder Client**).
+2. Click **Import** and select the files inside the `postman/` directory.
+3. The collection includes automatic test scripts: when you execute **`Register`** or **`Login`**, it automatically captures and sets the `{{token}}` variable for subsequent requests (`/me`, campus scoping tests, admin tests).
+
+---
+
 ## 📦 Available Scripts
 
 | Command | Description |
 |---|---|
 | `npm run dev` | Starts server with live auto-reload via `tsx watch` |
-| `npm run test:db` | Tests MongoDB connection and model compilation |
+| `npm run test:db` | Tests MongoDB Atlas connection and model compilation |
+| `npm run test:auth` | Automated integration test for Auth, bcrypt, JWT & Campus Scoping |
 | `npm run build` | Compiles TypeScript into `dist/` folder |
 | `npm start` | Runs compiled production code from `dist/server.js` |
 | `npm run lint` | Type checks codebase (`tsc --noEmit`) |

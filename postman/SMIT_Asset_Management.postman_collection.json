@@ -1,0 +1,282 @@
+{
+  "info": {
+    "_postman_id": "9b12a345-6789-4def-0123-abcdef456789",
+    "name": "SMIT Asset Inventory & IT Helpdesk Management System",
+    "description": "Postman collection covering Health, Authentication (JWT), RBAC, and Campus Scoping endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "authorizedCampusId",
+      "value": "6ad879c6ec80e1d10b8e45dc",
+      "type": "string"
+    },
+    {
+      "key": "forbiddenCampusId",
+      "value": "6ad879c6ec80e1d10b8e45dd",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & System",
+      "item": [
+        {
+          "name": "API Root Welcome",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api",
+              "host": ["{{baseUrl}}"],
+              "path": ["api"]
+            },
+            "description": "Returns basic API info and endpoint index."
+          },
+          "response": []
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Checks system status, MongoDB Atlas connectivity, process uptime, and memory statistics."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication & RBAC",
+      "item": [
+        {
+          "name": "1. Register (Campus Manager with Campus Scoping)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "    pm.environment.set('token', response.token);",
+                  "    console.log('JWT Token saved to collection variable: token');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ali Khan\",\n  \"email\": \"ali.khan@smit.edu.pk\",\n  \"password\": \"Password123!\",\n  \"phone\": \"+923001234567\",\n  \"department\": \"IT Support\",\n  \"designation\": \"Campus Manager\",\n  \"role\": \"CAMPUS_MANAGER\",\n  \"campusScope\": [\"{{authorizedCampusId}}\"],\n  \"isGlobalScope\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Registers a new user scoped to specific campus ID(s). Automatically captures the returned JWT into the collection variable `token`."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Register (Super Admin - Global Scope)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('adminToken', response.token);",
+                  "    console.log('Admin Token saved to collection variable: adminToken');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"System Administrator\",\n  \"email\": \"superadmin@smit.edu.pk\",\n  \"password\": \"AdminSecret2026!\",\n  \"department\": \"Central Operations\",\n  \"designation\": \"Head of IT Infrastructure\",\n  \"role\": \"SUPER_ADMIN\",\n  \"isGlobalScope\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Registers a Super Admin account with global scope across all campuses."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.token) {",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "    pm.environment.set('token', response.token);",
+                  "    console.log('JWT Token updated in collection variable: token');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ali.khan@smit.edu.pk\",\n  \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Authenticates user credentials and sets the JWT token variable automatically."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Get Current User Profile (/me)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Returns the authenticated user profile with resolved role, permissions, and populated campus scopes."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Verify Campus Access (Authorized Campus)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/test-campus-access/{{authorizedCampusId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "test-campus-access", "{{authorizedCampusId}}"]
+            },
+            "description": "Tests Campus Scoping middleware with an authorized campus ID. Expects 200 OK."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Verify Campus Access (Forbidden Campus - Expect 403)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/test-campus-access/{{forbiddenCampusId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "test-campus-access", "{{forbiddenCampusId}}"]
+            },
+            "description": "Tests Campus Scoping middleware with an unauthorized campus ID. Expects 403 Forbidden with access denial error."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Admin Only Route (RBAC Role Check)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/admin-only",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "admin-only"]
+            },
+            "description": "Tests RBAC middleware allowing only SUPER_ADMIN or INVENTORY_ADMIN."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
