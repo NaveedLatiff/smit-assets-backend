@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "9b12a345-6789-4def-0123-abcdef456789",
     "name": "SMIT Asset Inventory & IT Helpdesk Management System",
-    "description": "Postman collection covering Health, Authentication (JWT), RBAC, and Campus Scoping endpoints.",
+    "description": "Postman collection covering Health, Authentication (JWT), RBAC, Campus Scoping, Asset Master CRUD, QR Code Generation/Scanning, and Bulk Intake.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -24,6 +24,31 @@
     {
       "key": "forbiddenCampusId",
       "value": "6ad879c6ec80e1d10b8e45dd",
+      "type": "string"
+    },
+    {
+      "key": "categoryId",
+      "value": "6ad879c6ec80e1d10b8e45de",
+      "type": "string"
+    },
+    {
+      "key": "buildingId",
+      "value": "6ad879c6ec80e1d10b8e45df",
+      "type": "string"
+    },
+    {
+      "key": "roomId",
+      "value": "6ad879c6ec80e1d10b8e45e0",
+      "type": "string"
+    },
+    {
+      "key": "assetId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "assetQrToken",
+      "value": "",
       "type": "string"
     }
   ],
@@ -74,7 +99,6 @@
                   "const response = pm.response.json();",
                   "if (response.token) {",
                   "    pm.collectionVariables.set('token', response.token);",
-                  "    pm.environment.set('token', response.token);",
                   "    console.log('JWT Token saved to collection variable: token');",
                   "}"
                 ],
@@ -112,8 +136,8 @@
                 "exec": [
                   "const response = pm.response.json();",
                   "if (response.token) {",
-                  "    pm.collectionVariables.set('adminToken', response.token);",
-                  "    console.log('Admin Token saved to collection variable: adminToken');",
+                  "    pm.collectionVariables.set('token', response.token);",
+                  "    console.log('Admin Token saved to collection variable: token');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -151,7 +175,6 @@
                   "const response = pm.response.json();",
                   "if (response.token) {",
                   "    pm.collectionVariables.set('token', response.token);",
-                  "    pm.environment.set('token', response.token);",
                   "    console.log('JWT Token updated in collection variable: token');",
                   "}"
                 ],
@@ -169,7 +192,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"ali.khan@smit.edu.pk\",\n  \"password\": \"Password123!\"\n}"
+              "raw": "{\n  \"email\": \"superadmin@smit.edu.pk\",\n  \"password\": \"AdminSecret2026!\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/auth/login",
@@ -251,9 +274,64 @@
             "description": "Tests Campus Scoping middleware with an unauthorized campus ID. Expects 403 Forbidden with access denial error."
           },
           "response": []
+        }
+      ]
+    },
+    {
+      "name": "Asset Master & QR Tokens",
+      "item": [
+        {
+          "name": "1. Create Asset (Sequential ID & Opaque QR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data && res.data._id) {",
+                  "    pm.collectionVariables.set('assetId', res.data._id);",
+                  "    pm.collectionVariables.set('assetQrToken', res.data.qrToken);",
+                  "    console.log('Saved assetId:', res.data._id);",
+                  "    console.log('Saved assetQrToken:', res.data.qrToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dell Latitude 5420 Laptop\",\n  \"categoryId\": \"{{categoryId}}\",\n  \"brand\": \"Dell\",\n  \"modelNumber\": \"Latitude 5420\",\n  \"serialNumber\": \"SN-DELL-883921\",\n  \"status\": \"AVAILABLE\",\n  \"condition\": \"NEW\",\n  \"location\": {\n    \"campusId\": \"{{authorizedCampusId}}\",\n    \"buildingId\": \"{{buildingId}}\",\n    \"roomId\": \"{{roomId}}\"\n  },\n  \"specs\": {\n    \"ram_gb\": 16,\n    \"processor\": \"Intel Core i7-1185G7\",\n    \"storage\": \"512GB NVMe SSD\",\n    \"mac_address\": \"00:1A:2B:3C:4D:5E\"\n  },\n  \"financials\": {\n    \"purchaseCost\": 195000,\n    \"vendor\": \"Dell Pakistan Official\",\n    \"invoiceNumber\": \"INV-SMIT-2026-001\"\n  },\n  \"notes\": \"Allocated for Software Development Lab\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/assets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets"]
+            },
+            "description": "Creates a master asset with system-generated permanent Asset ID (e.g. SMIT-LAP-000001) and opaque cryptographic QR token."
+          },
+          "response": []
         },
         {
-          "name": "7. Admin Only Route (RBAC Role Check)",
+          "name": "2. List Assets (Filters, Pagination & Scoping)",
           "request": {
             "auth": {
               "type": "bearer",
@@ -268,11 +346,173 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/api/auth/admin-only",
+              "raw": "{{baseUrl}}/api/assets?page=1&limit=10&status=AVAILABLE&sortBy=createdAt&sortOrder=desc",
               "host": ["{{baseUrl}}"],
-              "path": ["api", "auth", "admin-only"]
+              "path": ["api", "assets"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "AVAILABLE" },
+                { "key": "campusId", "value": "{{authorizedCampusId}}", "disabled": true },
+                { "key": "categoryId", "value": "{{categoryId}}", "disabled": true },
+                { "key": "search", "value": "Dell", "disabled": true },
+                { "key": "sortBy", "value": "createdAt" },
+                { "key": "sortOrder", "value": "desc" }
+              ]
             },
-            "description": "Tests RBAC middleware allowing only SUPER_ADMIN or INVENTORY_ADMIN."
+            "description": "Lists assets with campus scoping, category and status filtering, text search, and pagination."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Single Asset by ID (With History Timeline)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets", "{{assetId}}"]
+            },
+            "description": "Returns full asset profile including populated location hierarchy and chronological history/timeline."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Update Asset (Status & Assignment)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"ASSIGNED\",\n  \"condition\": \"EXCELLENT\",\n  \"remarks\": \"Assigned to Senior Trainer for AI Bootcamp\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets", "{{assetId}}"]
+            },
+            "description": "Updates asset properties and automatically appends a STATUS_CHANGED history audit event."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Scan QR Code Token (Public / Unauthenticated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/qr/{{assetQrToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets", "qr", "{{assetQrToken}}"]
+            },
+            "description": "Simulates a public phone scanning the QR token. Returns non-sensitive summary without exposing confidential financial or personal data."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Scan QR Code Token (Authenticated Technician / Manager)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/qr/{{assetQrToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets", "qr", "{{assetQrToken}}"]
+            },
+            "description": "Scans QR token with technician or manager Bearer token. Returns complete specifications and maintenance history."
+          },
+          "response": []
+        },
+        {
+          "name": "7. Bulk Intake / Import Assets",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assets\": [\n    {\n      \"name\": \"HP LaserJet Pro MFP 4103dw\",\n      \"categoryId\": \"{{categoryId}}\",\n      \"brand\": \"HP\",\n      \"modelNumber\": \"4103dw\",\n      \"serialNumber\": \"SN-HP-001928\",\n      \"status\": \"AVAILABLE\",\n      \"condition\": \"NEW\",\n      \"location\": {\n        \"campusId\": \"{{authorizedCampusId}}\",\n        \"buildingId\": \"{{buildingId}}\",\n        \"roomId\": \"{{roomId}}\"\n      },\n      \"specs\": {\n        \"print_speed_ppm\": 42,\n        \"duplex\": true,\n        \"connectivity\": \"Ethernet, Wi-Fi, USB\"\n      }\n    },\n    {\n      \"name\": \"Cisco Catalyst 2960-X Switch\",\n      \"categoryId\": \"{{categoryId}}\",\n      \"brand\": \"Cisco\",\n      \"modelNumber\": \"WS-C2960X-48TS-L\",\n      \"serialNumber\": \"SN-CISCO-882190\",\n      \"status\": \"AVAILABLE\",\n      \"condition\": \"NEW\",\n      \"location\": {\n        \"campusId\": \"{{authorizedCampusId}}\",\n        \"buildingId\": \"{{buildingId}}\",\n        \"roomId\": \"{{roomId}}\"\n      },\n      \"specs\": {\n        \"ports\": 48,\n        \"speed\": \"10/100/1000 Gigabit\",\n        \"poe\": false\n      }\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/import",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets", "import"]
+            },
+            "description": "Performs bulk intake of assets with row-level validation, duplicate checking, and auto-generated sequential tags and QR tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "8. Soft-Delete / Retire Asset",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/assets/{{assetId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "assets", "{{assetId}}"]
+            },
+            "description": "Soft-deletes and retires an asset while preserving the audit timeline in AssetHistory."
           },
           "response": []
         }

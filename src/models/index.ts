@@ -5,3 +5,5 @@ export * from './Building';
 export * from './Room';
 export * from './AssetCategory';
 export * from './Asset';
+export * from './AssetHistory';
+export * from './Counter';

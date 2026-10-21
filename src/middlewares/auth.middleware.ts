@@ -70,6 +70,61 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 /**
+ * Middleware that extracts user credentials if Bearer token is provided,
+ * but does not reject unauthenticated requests.
+ */
+export const optionalAuthenticate = async (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    let decoded;
+    try {
+      decoded = verifyJwtToken(token);
+    } catch {
+      return next();
+    }
+
+    const user = await User.findById(decoded.userId).populate<{ role: IRole }>('role');
+    if (!user || !user.isActive) {
+      return next();
+    }
+
+    const roleDoc = user.role as unknown as IRole;
+    const userRoleName = roleDoc?.name || 'EMPLOYEE';
+    const rolePermissions = roleDoc?.permissions || [];
+
+    req.user = {
+      _id: user._id.toString(),
+      name: user.name,
+      email: user.email,
+      role: {
+        _id: roleDoc?._id ? roleDoc._id.toString() : '',
+        name: userRoleName,
+        displayName: roleDoc?.displayName || userRoleName,
+        permissions: rolePermissions,
+      },
+      campusScope: user.campusScope.map((id) => id.toString()),
+      isGlobalScope: user.isGlobalScope,
+      customPermissions: user.customPermissions || [],
+      isActive: user.isActive,
+    };
+    req.scopedCampusIds = user.isGlobalScope ? [] : req.user.campusScope;
+
+    next();
+  } catch {
+    next();
+  }
+};
+
+/**
  * Middleware to restrict endpoints to specific system roles
  * e.g. authorizeRoles('SUPER_ADMIN', 'INVENTORY_ADMIN')
  */

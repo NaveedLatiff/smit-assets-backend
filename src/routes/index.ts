@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import healthRoutes from './health.routes';
 import authRoutes from './auth.routes';
+import assetRoutes from './asset.routes';
 
 const apiRouter = Router();
 
@@ -9,6 +10,9 @@ apiRouter.use('/health', healthRoutes);
 
 // Mount Auth & RBAC endpoints
 apiRouter.use('/auth', authRoutes);
+
+// Mount Asset Master endpoints
+apiRouter.use('/assets', assetRoutes);
 
 // Root API Welcome endpoint
 apiRouter.get('/', (_req, res) => {
@@ -24,6 +28,15 @@ apiRouter.get('/', (_req, res) => {
         me: 'GET /api/auth/me',
         testCampusAccess: 'GET /api/auth/test-campus-access/:campusId',
         adminOnly: 'GET /api/auth/admin-only',
+      },
+      assets: {
+        create: 'POST /api/assets',
+        list: 'GET /api/assets',
+        getById: 'GET /api/assets/:id',
+        update: 'PUT /api/assets/:id',
+        delete: 'DELETE /api/assets/:id',
+        qrResolve: 'GET /api/assets/qr/:token',
+        import: 'POST /api/assets/import',
       },
     },
   });

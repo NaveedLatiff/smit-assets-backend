@@ -39,6 +39,9 @@ export interface IAsset extends Document {
   financials?: IAssetFinancials;
   images?: string[];
   notes?: string;
+  isDeleted: boolean;
+  deletedAt?: Date;
+  deletedBy?: Types.ObjectId;
   createdBy?: Types.ObjectId;
   updatedBy?: Types.ObjectId;
   createdAt: Date;
@@ -170,6 +173,18 @@ const AssetSchema = new Schema<IAsset>(
       type: String,
       trim: true,
     },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+    },
+    deletedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
     createdBy: {
       type: Schema.Types.ObjectId,
       ref: 'User',
@@ -185,6 +200,14 @@ const AssetSchema = new Schema<IAsset>(
     toObject: { virtuals: true },
   }
 );
+
+// Virtual relationship to timeline/history events
+AssetSchema.virtual('history', {
+  ref: 'AssetHistory',
+  localField: '_id',
+  foreignField: 'assetId',
+  options: { sort: { timestamp: -1 } },
+});
 
 // Pre-save hook: Ensure assetTag and opaque qrToken are automatically assigned if not provided
 AssetSchema.pre('validate', function (next) {
