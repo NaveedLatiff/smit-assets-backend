@@ -2,6 +2,8 @@ import { Router } from 'express';
 import healthRoutes from './health.routes';
 import authRoutes from './auth.routes';
 import assetRoutes from './asset.routes';
+import custodyRoutes from './custody.routes';
+import transferRoutes from './transfer.routes';
 
 const apiRouter = Router();
 
@@ -13,6 +15,12 @@ apiRouter.use('/auth', authRoutes);
 
 // Mount Asset Master endpoints
 apiRouter.use('/assets', assetRoutes);
+
+// Mount Custody (Check-In / Check-Out) endpoints
+apiRouter.use('/custody', custodyRoutes);
+
+// Mount Inter-Branch Transfers endpoints
+apiRouter.use('/transfers', transferRoutes);
 
 // Root API Welcome endpoint
 apiRouter.get('/', (_req, res) => {
@@ -37,6 +45,19 @@ apiRouter.get('/', (_req, res) => {
         delete: 'DELETE /api/assets/:id',
         qrResolve: 'GET /api/assets/qr/:token',
         import: 'POST /api/assets/import',
+      },
+      custody: {
+        assign: 'POST /api/custody/assign',
+        return: 'POST /api/custody/return',
+        myAssets: 'GET /api/custody/my-assets',
+      },
+      transfers: {
+        request: 'POST /api/transfers',
+        list: 'GET /api/transfers',
+        getById: 'GET /api/transfers/:id',
+        approve: 'PUT /api/transfers/:id/approve',
+        dispatch: 'PUT /api/transfers/:id/dispatch',
+        receive: 'PUT /api/transfers/:id/receive',
       },
     },
   });

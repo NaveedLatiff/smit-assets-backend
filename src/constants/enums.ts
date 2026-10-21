@@ -17,9 +17,19 @@ export enum AssetStatus {
   ASSIGNED = 'ASSIGNED',
   IN_MAINTENANCE = 'IN_MAINTENANCE',
   UNDER_REPAIR = 'UNDER_REPAIR',
+  IN_TRANSIT = 'IN_TRANSIT',
   RESERVED = 'RESERVED',
   DECOMMISSIONED = 'DECOMMISSIONED',
   LOST_STOLEN = 'LOST_STOLEN',
+}
+
+export enum TransferStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  DISPATCHED = 'DISPATCHED',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED',
 }
 
 export enum AssetCondition {
@@ -29,17 +39,6 @@ export enum AssetCondition {
   FAIR = 'FAIR',
   POOR = 'POOR',
   DAMAGED = 'DAMAGED',
-}
-
-export enum RoomType {
-  LAB = 'LAB',
-  CLASSROOM = 'CLASSROOM',
-  OFFICE = 'OFFICE',
-  SERVER_ROOM = 'SERVER_ROOM',
-  AUDITORIUM = 'AUDITORIUM',
-  STORAGE = 'STORAGE',
-  LIBRARY = 'LIBRARY',
-  OTHER = 'OTHER',
 }
 
 export enum CustomFieldType {

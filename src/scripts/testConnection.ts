@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import { connectDB, getDBStatus } from '../config/db';
-import { Campus, Building, Room, Role, User, AssetCategory, Asset } from '../models';
+import { Campus, Role, User, AssetCategory, Asset, AssetTransfer, AssetHistory } from '../models';
 
 async function testConnection() {
   console.log('🔍 Testing MongoDB connection and Mongoose model compilation...\n');
@@ -15,10 +15,10 @@ async function testConnection() {
       { name: 'Role', model: Role },
       { name: 'User', model: User },
       { name: 'Campus', model: Campus },
-      { name: 'Building', model: Building },
-      { name: 'Room', model: Room },
       { name: 'AssetCategory', model: AssetCategory },
       { name: 'Asset', model: Asset },
+      { name: 'AssetTransfer', model: AssetTransfer },
+      { name: 'AssetHistory', model: AssetHistory },
     ];
 
     console.log('\n📋 Registered Mongoose Models:');

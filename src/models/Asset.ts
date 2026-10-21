@@ -4,12 +4,12 @@ import { generateDefaultAssetTag, generateOpaqueQRToken } from '../utils/tokenGe
 
 export interface IAssetLocation {
   campusId: Types.ObjectId;
-  roomId: Types.ObjectId;
 }
 
 export interface IAssetAssignment {
   userId?: Types.ObjectId;
   assignedAt?: Date;
+  expectedReturnDate?: Date;
   remarks?: string;
 }
 
@@ -46,12 +46,6 @@ const AssetLocationSchema = new Schema<IAssetLocation>(
       required: [true, 'Campus reference is required for asset location'],
       index: true,
     },
-    roomId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Room',
-      required: [true, 'Room reference is required for asset location'],
-      index: true,
-    },
   },
   { _id: false }
 );
@@ -64,6 +58,9 @@ const AssetAssignmentSchema = new Schema<IAssetAssignment>(
       index: true,
     },
     assignedAt: {
+      type: Date,
+    },
+    expectedReturnDate: {
       type: Date,
     },
     remarks: {

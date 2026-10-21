@@ -1,13 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 import { connectDB } from '../config/db';
-import { Campus, Building, Room, AssetCategory } from '../models';
+import { Campus, AssetCategory, User, Role, Asset } from '../models';
 import { ensureDefaultRoles } from '../services/role.service';
-import { CustomFieldType, RoomType } from '../constants/enums';
+import { AssetCondition, AssetStatus, CustomFieldType, SystemRole } from '../constants/enums';
 
 async function seedData() {
-  console.log('🌱 Seeding initial demo data for testing...\n');
+  console.log('🌱 Seeding initial demo data for SMIT Asset Management (Saylani Welfare Trust)...\n');
 
   try {
     await connectDB();
@@ -38,104 +39,150 @@ async function seedData() {
       { upsert: true, new: true }
     );
 
-    // 2. Building
-    const building = await Building.findOneAndUpdate(
-      { campusId: mainCampus._id, code: 'IT-BLK' },
-      {
-        campusId: mainCampus._id,
-        name: 'IT & Software Block',
-        code: 'IT-BLK',
-        totalFloors: 3,
-        isActive: true,
-      },
-      { upsert: true, new: true }
-    );
-
-    // 3. Room
-    const room = await Room.findOneAndUpdate(
-      { buildingId: building._id, roomNumber: 'LAB-101' },
-      {
-        campusId: mainCampus._id,
-        buildingId: building._id,
-        name: 'Software Engineering Lab 1',
-        roomNumber: 'LAB-101',
-        floor: 1,
-        roomType: RoomType.LAB,
-        capacity: 40,
-        isActive: true,
-      },
-      { upsert: true, new: true }
-    );
-
-    // 4. Categories
+    // 2. Categories
     const laptopCategory = await AssetCategory.findOneAndUpdate(
       { code: 'LAP' },
       {
         name: 'Laptops & Workstations',
         code: 'LAP',
         tagPrefix: 'LAP',
-        description: 'Developer and faculty laptops',
+        description: 'Developer, faculty, and employee laptops',
         specDefinitions: [
           { key: 'ram_gb', label: 'RAM (GB)', type: CustomFieldType.NUMBER, required: true },
           { key: 'processor', label: 'Processor', type: CustomFieldType.STRING, required: true },
           { key: 'storage', label: 'Storage', type: CustomFieldType.STRING, required: false },
-          { key: 'mac_address', label: 'MAC Address', type: CustomFieldType.STRING, required: false },
         ],
         isActive: true,
       },
       { upsert: true, new: true }
     );
 
-    console.log('✅ Seeded Records:');
-    console.log(`   - Main Campus (Authorized) ID : ${mainCampus._id}`);
-    console.log(`   - Gulshan Campus (Forbidden) ID: ${gulshanCampus._id}`);
-    console.log(`   - Building ID                 : ${building._id}`);
-    console.log(`   - Room ID                     : ${room._id}`);
-    console.log(`   - Category (Laptops) ID       : ${laptopCategory._id}`);
+    const acCategory = await AssetCategory.findOneAndUpdate(
+      { code: 'AC' },
+      {
+        name: 'Air Conditioners & Cooling',
+        code: 'AC',
+        tagPrefix: 'AC',
+        description: 'Branch AC units and fixtures',
+        specDefinitions: [
+          { key: 'capacity_tons', label: 'Capacity (Tons)', type: CustomFieldType.NUMBER, required: true },
+          { key: 'inverter', label: 'Inverter', type: CustomFieldType.BOOLEAN, required: false },
+        ],
+        isActive: true,
+      },
+      { upsert: true, new: true }
+    );
+
+    // 3. System Roles & Users
+    const superAdminRole = await Role.findOne({ name: SystemRole.SUPER_ADMIN });
+    const campusMgrRole = await Role.findOne({ name: SystemRole.CAMPUS_MANAGER });
+
+    const passwordHashAdmin = await bcrypt.hash('AdminSecret2026!', 10);
+    const superAdmin = await User.findOneAndUpdate(
+      { email: 'superadmin@smit.edu.pk' },
+      {
+        name: 'System Administrator',
+        email: 'superadmin@smit.edu.pk',
+        passwordHash: passwordHashAdmin,
+        department: 'Central Operations',
+        designation: 'Head of IT Infrastructure',
+        role: superAdminRole!._id,
+        isGlobalScope: true,
+        campusScope: [mainCampus._id, gulshanCampus._id],
+        isActive: true,
+      },
+      { upsert: true, new: true }
+    );
+
+    const passwordHashMgr = await bcrypt.hash('Password123!', 10);
+    const campusManager = await User.findOneAndUpdate(
+      { email: 'ali.khan@smit.edu.pk' },
+      {
+        name: 'Ali Khan',
+        email: 'ali.khan@smit.edu.pk',
+        passwordHash: passwordHashMgr,
+        department: 'IT Support',
+        designation: 'Campus Manager',
+        role: campusMgrRole!._id,
+        isGlobalScope: false,
+        campusScope: [mainCampus._id],
+        isActive: true,
+      },
+      { upsert: true, new: true }
+    );
+
+    // 4. Initial Demo Assets
+    const demoAsset = await Asset.findOneAndUpdate(
+      { assetTag: 'SMIT-LAP-000001' },
+      {
+        name: 'Dell Latitude 5420',
+        organization: 'Saylani Welfare Trust',
+        assetTag: 'SMIT-LAP-000001',
+        categoryId: laptopCategory._id,
+        brand: 'Dell',
+        modelNumber: 'Latitude 5420',
+        serialNumber: 'SN-DELL-5420-SMIT1',
+        status: AssetStatus.AVAILABLE,
+        condition: AssetCondition.EXCELLENT,
+        location: {
+          campusId: mainCampus._id,
+        },
+        specs: {
+          ram_gb: 16,
+          processor: 'Intel Core i7-1185G7',
+          storage: '512GB NVMe SSD',
+        },
+        createdBy: superAdmin._id,
+      },
+      { upsert: true, new: true }
+    );
+
+    console.log('✅ Seeded Clean Records (No Building, No Room):');
+    console.log(`   - Owner Organization         : Saylani Welfare Trust`);
+    console.log(`   - Main Campus ID             : ${mainCampus._id}`);
+    console.log(`   - Gulshan Campus ID          : ${gulshanCampus._id}`);
+    console.log(`   - Laptop Category ID         : ${laptopCategory._id}`);
+    console.log(`   - Super Admin User           : superadmin@smit.edu.pk (${superAdmin._id})`);
+    console.log(`   - Campus Manager User        : ali.khan@smit.edu.pk (${campusManager._id})`);
+    console.log(`   - Sample Asset Tag           : ${demoAsset.assetTag} (${demoAsset._id})`);
 
     // Update Postman environment file automatically with these real MongoDB IDs
     const envPath = path.resolve(process.cwd(), 'postman/SMIT_Asset_Management.postman_environment.json');
     if (fs.existsSync(envPath)) {
       const envData = JSON.parse(fs.readFileSync(envPath, 'utf8'));
-      envData.values = envData.values.map((v: any) => {
-        if (v.key === 'authorizedCampusId') v.value = mainCampus._id.toString();
-        if (v.key === 'forbiddenCampusId') v.value = gulshanCampus._id.toString();
-        if (v.key === 'buildingId') v.value = building._id.toString();
-        if (v.key === 'roomId') v.value = room._id.toString();
-        if (v.key === 'categoryId') v.value = laptopCategory._id.toString();
-        return v;
-      });
-
-      // Ensure buildingId, roomId, categoryId exist in env
-      const keys = envData.values.map((v: any) => v.key);
-      if (!keys.includes('buildingId')) {
-        envData.values.push({ key: 'buildingId', value: building._id.toString(), type: 'default', enabled: true });
-      }
-      if (!keys.includes('roomId')) {
-        envData.values.push({ key: 'roomId', value: room._id.toString(), type: 'default', enabled: true });
-      }
-      if (!keys.includes('categoryId')) {
-        envData.values.push({ key: 'categoryId', value: laptopCategory._id.toString(), type: 'default', enabled: true });
-      }
+      // Filter out buildingId and roomId
+      envData.values = envData.values
+        .filter((v: any) => v.key !== 'buildingId' && v.key !== 'roomId')
+        .map((v: any) => {
+          if (v.key === 'authorizedCampusId') v.value = mainCampus._id.toString();
+          if (v.key === 'forbiddenCampusId') v.value = gulshanCampus._id.toString();
+          if (v.key === 'categoryId') v.value = laptopCategory._id.toString();
+          if (v.key === 'assetId') v.value = demoAsset._id.toString();
+          if (v.key === 'assetQrToken') v.value = demoAsset.qrToken;
+          return v;
+        });
 
       fs.writeFileSync(envPath, JSON.stringify(envData, null, 2));
-      console.log('\n📄 Updated postman_environment.json with real database IDs!');
+      console.log('\n📄 Updated postman_environment.json (Cleaned: No buildingId or roomId)');
     }
 
-    // Update Postman collection variables as well
+    // Update Postman collection variables
     const collPath = path.resolve(process.cwd(), 'postman/SMIT_Asset_Management.postman_collection.json');
     if (fs.existsSync(collPath)) {
       const collData = JSON.parse(fs.readFileSync(collPath, 'utf8'));
-      collData.variable = collData.variable.map((v: any) => {
-        if (v.key === 'authorizedCampusId') v.value = mainCampus._id.toString();
-        if (v.key === 'forbiddenCampusId') v.value = gulshanCampus._id.toString();
-        if (v.key === 'buildingId') v.value = building._id.toString();
-        if (v.key === 'roomId') v.value = room._id.toString();
-        if (v.key === 'categoryId') v.value = laptopCategory._id.toString();
-        return v;
-      });
+      collData.variable = collData.variable
+        .filter((v: any) => v.key !== 'buildingId' && v.key !== 'roomId')
+        .map((v: any) => {
+          if (v.key === 'authorizedCampusId') v.value = mainCampus._id.toString();
+          if (v.key === 'forbiddenCampusId') v.value = gulshanCampus._id.toString();
+          if (v.key === 'categoryId') v.value = laptopCategory._id.toString();
+          if (v.key === 'assetId') v.value = demoAsset._id.toString();
+          if (v.key === 'assetQrToken') v.value = demoAsset.qrToken;
+          return v;
+        });
+
       fs.writeFileSync(collPath, JSON.stringify(collData, null, 2));
-      console.log('📄 Updated postman_collection.json default variables with real database IDs!');
+      console.log('📄 Updated postman_collection.json default variables');
     }
 
     console.log('\n✨ Database seeding completed successfully!');

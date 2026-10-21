@@ -19,6 +19,13 @@ export enum Permission {
   ASSETS_AUDIT = 'assets:audit',
   ASSETS_EXPORT = 'assets:export',
 
+  // Asset Transfers
+  TRANSFERS_REQUEST = 'transfers:request',
+  TRANSFERS_APPROVE = 'transfers:approve',
+  TRANSFERS_DISPATCH = 'transfers:dispatch',
+  TRANSFERS_RECEIVE = 'transfers:receive',
+  TRANSFERS_READ = 'transfers:read',
+
   // Categories
   CATEGORIES_MANAGE = 'categories:manage',
 
@@ -51,6 +58,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.ASSETS_ASSIGN,
     Permission.ASSETS_AUDIT,
     Permission.ASSETS_EXPORT,
+    Permission.TRANSFERS_REQUEST,
+    Permission.TRANSFERS_APPROVE,
+    Permission.TRANSFERS_DISPATCH,
+    Permission.TRANSFERS_RECEIVE,
+    Permission.TRANSFERS_READ,
     Permission.REPORTS_VIEW,
     Permission.AUDIT_LOGS_VIEW,
   ],
@@ -64,6 +76,11 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.ASSETS_ASSIGN,
     Permission.ASSETS_AUDIT,
     Permission.ASSETS_EXPORT,
+    Permission.TRANSFERS_REQUEST,
+    Permission.TRANSFERS_APPROVE,
+    Permission.TRANSFERS_DISPATCH,
+    Permission.TRANSFERS_RECEIVE,
+    Permission.TRANSFERS_READ,
     Permission.CATEGORIES_MANAGE,
     Permission.TICKETS_CREATE,
     Permission.TICKETS_READ,
@@ -77,6 +94,9 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, Permission[]> = {
     Permission.ASSETS_READ,
     Permission.ASSETS_UPDATE,
     Permission.ASSETS_AUDIT,
+    Permission.TRANSFERS_READ,
+    Permission.TRANSFERS_DISPATCH,
+    Permission.TRANSFERS_RECEIVE,
     Permission.TICKETS_CREATE,
     Permission.TICKETS_READ,
     Permission.TICKETS_UPDATE,

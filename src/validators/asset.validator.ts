@@ -14,7 +14,6 @@ export const createAssetSchema = z.object({
   condition: z.nativeEnum(AssetCondition).optional().default(AssetCondition.NEW),
   location: z.object({
     campusId: z.string({ required_error: 'Campus ID is required' }).regex(objectIdRegex, 'Invalid Campus ObjectId'),
-    roomId: z.string({ required_error: 'Room ID is required' }).regex(objectIdRegex, 'Invalid Room ObjectId'),
   }),
   assignedTo: z
     .object({

@@ -59,11 +59,4 @@ const CampusSchema = new Schema<ICampus>(
   }
 );
 
-// Virtual relationship to child rooms
-CampusSchema.virtual('rooms', {
-  ref: 'Room',
-  localField: '_id',
-  foreignField: 'campusId',
-});
-
 export const Campus: Model<ICampus> = mongoose.model<ICampus>('Campus', CampusSchema);

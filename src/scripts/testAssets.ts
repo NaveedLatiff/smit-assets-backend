@@ -1,13 +1,12 @@
 import mongoose from 'mongoose';
 import { connectDB } from '../config/db';
 import { Campus } from '../models/Campus';
-import { Room } from '../models/Room';
 import { AssetCategory } from '../models/AssetCategory';
 import { Asset } from '../models/Asset';
 import { AssetHistory, AssetHistoryAction } from '../models/AssetHistory';
 import { getNextSequentialTag } from '../models/Counter';
 import { generateOpaqueQRToken } from '../utils/tokenGenerator';
-import { AssetCondition, AssetStatus, RoomType } from '../constants/enums';
+import { AssetCondition, AssetStatus } from '../constants/enums';
 
 async function testAssetMaster() {
   console.log('🧪 Starting Asset Master, Sequential ID, QR & Bulk Import Test...\n');
@@ -16,23 +15,10 @@ async function testAssetMaster() {
     await connectDB();
 
     // 1. Create location hierarchy for test
-    console.log('1️⃣ Setting up test location hierarchy and asset category...');
+    console.log('1️⃣ Setting up test campus and asset category...');
     const campus = await Campus.findOneAndUpdate(
       { code: 'AST_CAMPUS' },
       { name: 'Asset Test Campus', code: 'AST_CAMPUS', city: 'Karachi', isActive: true },
-      { upsert: true, new: true }
-    );
-
-    const room = await Room.findOneAndUpdate(
-      { campusId: campus._id, roomNumber: 'LAB-101' },
-      {
-        campusId: campus._id,
-        name: 'Computer Lab 1',
-        roomNumber: 'LAB-101',
-        floor: 1,
-        roomType: RoomType.LAB,
-        isActive: true,
-      },
       { upsert: true, new: true }
     );
 
@@ -53,7 +39,6 @@ async function testAssetMaster() {
     );
 
     console.log(`   ✓ Campus:   ${campus.name} (${campus.code})`);
-    console.log(`   ✓ Room:     ${room.name} (${room.roomNumber})`);
     console.log(`   ✓ Category: ${category.name} [Prefix: ${category.tagPrefix}]`);
 
     // 2. Test Atomic Sequential Asset Tag Generation
@@ -88,7 +73,6 @@ async function testAssetMaster() {
       condition: AssetCondition.NEW,
       location: {
         campusId: campus._id,
-        roomId: room._id,
       },
       specs: {
         ram_gb: 16,
@@ -151,7 +135,6 @@ async function testAssetMaster() {
     console.log('\n🧹 Cleaning up test artifacts...');
     await Asset.deleteMany({ _id: asset._id });
     await AssetHistory.deleteMany({ assetId: asset._id });
-    await Room.deleteOne({ _id: room._id });
     await Campus.deleteOne({ _id: campus._id });
     await AssetCategory.deleteOne({ _id: category._id });
     console.log('   ✓ Cleanup complete.');

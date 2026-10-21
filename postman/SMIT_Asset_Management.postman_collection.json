@@ -18,37 +18,26 @@
     },
     {
       "key": "authorizedCampusId",
-      "value": "6ad87d27ec80e1d10b8e4652",
+      "value": "6ad88e5dec80e1d10b8e4937",
       "type": "string"
     },
     {
       "key": "forbiddenCampusId",
-      "value": "6ad87d27ec80e1d10b8e4653",
+      "value": "6ad88e5dec80e1d10b8e4938",
       "type": "string"
     },
     {
       "key": "categoryId",
-      "value": "6ad87d27ec80e1d10b8e4656",
-      "type": "string"
-    },
-    {
-      "key": "buildingId",
-      "value": "6ad87d27ec80e1d10b8e4654",
-      "type": "string"
-    },
-    {
-      "key": "roomId",
-      "value": "6ad87d27ec80e1d10b8e4655",
+      "value": "6ad88e5dec80e1d10b8e4939",
       "type": "string"
     },
     {
       "key": "assetId",
-      "value": "",
+      "value": "6ad88e5eec80e1d10b8e493d",
       "type": "string"
     },
     {
       "key": "assetQrToken",
-      "value": "",
       "type": "string"
     }
   ],
@@ -684,6 +673,305 @@
               ]
             },
             "description": "Soft-deletes and retires an asset while preserving the audit timeline in AssetHistory."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Custody (Check-In & Check-Out)",
+      "item": [
+        {
+          "name": "1. Assign Asset to Employee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"{{assetId}}\",\n  \"userId\": \"{{employeeUserId}}\",\n  \"expectedReturnDate\": \"2026-11-01T00:00:00.000Z\",\n  \"remarks\": \"Assigned Dell laptop to employee for training course\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/custody/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "custody",
+                "assign"
+              ]
+            },
+            "description": "Checks out an asset to an employee, updates asset status to ASSIGNED, and appends to audit history."
+          },
+          "response": []
+        },
+        {
+          "name": "2. View My Assigned Assets (Employee View)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/custody/my-assets",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "custody",
+                "my-assets"
+              ]
+            },
+            "description": "Allows an authenticated employee to see all equipment currently checked out in their custody."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Return Asset to Campus Stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"{{assetId}}\",\n  \"condition\": \"GOOD\",\n  \"remarks\": \"Returned to campus stock in good condition\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/custody/return",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "custody",
+                "return"
+              ]
+            },
+            "description": "Returns an asset back to campus inventory stock, clears assignedTo, and updates status to AVAILABLE."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Inter-Branch Transfers",
+      "item": [
+        {
+          "name": "1. Request Transfer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data._id) {",
+                  "    pm.environment.set('transferId', response.data._id);",
+                  "    pm.collectionVariables.set('transferId', response.data._id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assetId\": \"{{assetId}}\",\n  \"toCampusId\": \"{{forbiddenCampusId}}\",\n  \"reason\": \"Gulshan branch requires this equipment for upcoming Web development course\",\n  \"notes\": \"Handle with care during dispatch\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transfers"
+              ]
+            },
+            "description": "Requests an inter-branch transfer of an asset to a destination campus. Status starts as PENDING."
+          },
+          "response": []
+        },
+        {
+          "name": "2. List Transfers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transfers"
+              ]
+            },
+            "description": "Lists all transfers with campus scoping and status filters."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Get Transfer Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/transfers/{{transferId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transfers",
+                "{{transferId}}"
+              ]
+            },
+            "description": "Retrieves populated details of a transfer including origin/destination campuses and user history."
+          },
+          "response": []
+        },
+        {
+          "name": "4. Approve Transfer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"APPROVE\",\n  \"notes\": \"Transfer approved by Central Inventory Operations\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/transfers/{{transferId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transfers",
+                "{{transferId}}",
+                "approve"
+              ]
+            },
+            "description": "Approves a pending transfer request."
+          },
+          "response": []
+        },
+        {
+          "name": "5. Dispatch Transfer",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dispatchNotes\": \"Dispatched via Saylani Trust logistics vehicle #2\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/transfers/{{transferId}}/dispatch",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transfers",
+                "{{transferId}}",
+                "dispatch"
+              ]
+            },
+            "description": "Marks the transfer as dispatched. The asset status automatically changes to IN_TRANSIT."
+          },
+          "response": []
+        },
+        {
+          "name": "6. Receive Transfer at Destination",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receivingCondition\": \"EXCELLENT\",\n  \"receivingNotes\": \"Asset safely arrived at Gulshan campus and placed in inventory\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/transfers/{{transferId}}/receive",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transfers",
+                "{{transferId}}",
+                "receive"
+              ]
+            },
+            "description": "Confirms receipt of asset at destination branch. Updates asset location to destination campus, sets status to AVAILABLE, and marks transfer COMPLETED."
           },
           "response": []
         }
