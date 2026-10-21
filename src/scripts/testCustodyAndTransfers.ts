@@ -195,3 +195,5 @@ async function testCustodyAndTransfers() {
 }
 
 testCustodyAndTransfers();
+
+export {};

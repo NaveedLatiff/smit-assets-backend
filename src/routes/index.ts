@@ -4,6 +4,7 @@ import authRoutes from './auth.routes';
 import assetRoutes from './asset.routes';
 import custodyRoutes from './custody.routes';
 import transferRoutes from './transfer.routes';
+import ticketRoutes from './ticket.routes';
 
 const apiRouter = Router();
 
@@ -21,6 +22,9 @@ apiRouter.use('/custody', custodyRoutes);
 
 // Mount Inter-Branch Transfers endpoints
 apiRouter.use('/transfers', transferRoutes);
+
+// Mount IT Helpdesk & Ticketing endpoints
+apiRouter.use('/tickets', ticketRoutes);
 
 // Root API Welcome endpoint
 apiRouter.get('/', (_req, res) => {
@@ -58,6 +62,14 @@ apiRouter.get('/', (_req, res) => {
         approve: 'PUT /api/transfers/:id/approve',
         dispatch: 'PUT /api/transfers/:id/dispatch',
         receive: 'PUT /api/transfers/:id/receive',
+      },
+      tickets: {
+        create: 'POST /api/tickets',
+        list: 'GET /api/tickets',
+        getById: 'GET /api/tickets/:id',
+        assign: 'PUT /api/tickets/:id/assign',
+        updateStatus: 'PUT /api/tickets/:id/status',
+        addComment: 'POST /api/tickets/:id/comments',
       },
     },
   });

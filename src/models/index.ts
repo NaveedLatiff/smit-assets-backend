@@ -5,4 +5,5 @@ export * from './AssetCategory';
 export * from './Asset';
 export * from './AssetTransfer';
 export * from './AssetHistory';
+export * from './Ticket';
 export * from './Counter';

@@ -48,3 +48,28 @@ export enum CustomFieldType {
   DATE = 'DATE',
   SELECT = 'SELECT',
 }
+
+export enum TicketCategory {
+  HARDWARE = 'HARDWARE',
+  SOFTWARE = 'SOFTWARE',
+  NETWORK = 'NETWORK',
+  PRINTER = 'PRINTER',
+  POWER = 'POWER',
+  OTHER = 'OTHER',
+}
+
+export enum TicketPriority {
+  P1_CRITICAL = 'P1_CRITICAL',
+  P2_HIGH = 'P2_HIGH',
+  P3_MEDIUM = 'P3_MEDIUM',
+  P4_LOW = 'P4_LOW',
+}
+
+export enum TicketStatus {
+  OPEN = 'OPEN',
+  ASSIGNED = 'ASSIGNED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  PENDING_PARTS = 'PENDING_PARTS',
+  RESOLVED = 'RESOLVED',
+  CLOSED = 'CLOSED',
+}
