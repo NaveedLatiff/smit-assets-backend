@@ -7,6 +7,9 @@ import {
   deleteAsset,
   resolveQRToken,
   bulkImportAssets,
+  getAccessibleCampuses,
+  getActiveCategories,
+  getAssetAnalytics,
 } from '../controllers/asset.controller';
 import {
   authenticate,
@@ -37,6 +40,27 @@ router.get('/qr/:token', optionalAuthenticate, resolveQRToken);
  * @access  Private (Requires assets:create)
  */
 router.post('/', authenticate, requirePermissions(Permission.ASSETS_CREATE), createAsset);
+
+/**
+ * @route   GET /api/assets/meta/campuses
+ * @desc    Get campuses accessible by the user (Super Admin gets all, Branch Manager gets theirs)
+ * @access  Private
+ */
+router.get('/meta/campuses', authenticate, getAccessibleCampuses);
+
+/**
+ * @route   GET /api/assets/meta/categories
+ * @desc    Get all active asset categories
+ * @access  Private
+ */
+router.get('/meta/categories', authenticate, getActiveCategories);
+
+/**
+ * @route   GET /api/assets/analytics/distribution
+ * @desc    Aggregate asset distribution for visual interactive charts
+ * @access  Private
+ */
+router.get('/analytics/distribution', authenticate, getAssetAnalytics);
 
 /**
  * @route   GET /api/assets

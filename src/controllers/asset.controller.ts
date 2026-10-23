@@ -31,18 +31,28 @@ export const createAsset = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    const data = parseResult.data;
+    const { quantity = 1, ...data } = parseResult.data;
 
-    // 1. Campus Scoping Check
-    if (req.user && !req.user.isGlobalScope) {
-      const isAllowed = req.user.campusScope.includes(data.location.campusId);
-      if (!isAllowed) {
+    // 1. Role Authorization & Campus Scoping Check
+    if (req.user) {
+      if (req.user.role?.name === 'EMPLOYEE' || req.user.role?.name === 'FACULTY_STAFF') {
         res.status(403).json({
           success: false,
-          message: `Access Denied: You do not have permission to create assets in campus '${data.location.campusId}'.`,
-          authorizedCampuses: req.user.campusScope,
+          message: 'Access Denied: Standard employees cannot register new assets.',
         });
         return;
+      }
+
+      if (!req.user.isGlobalScope) {
+        const isAllowed = req.user.campusScope.includes(data.location.campusId);
+        if (!isAllowed) {
+          res.status(403).json({
+            success: false,
+            message: `Access Denied: You do not have permission to create assets in campus '${data.location.campusId}'.`,
+            authorizedCampuses: req.user.campusScope,
+          });
+          return;
+        }
       }
     }
 
@@ -63,7 +73,69 @@ export const createAsset = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // 4. Validate Serial Number Uniqueness if provided
+    // Batch Registration Support (e.g. quantity 10, 50, 1000)
+    if (quantity > 1) {
+      if (data.assetTag) {
+        res.status(400).json({
+          success: false,
+          message: 'Custom asset tag cannot be specified when registering multiple items in bulk. The system generates unique sequential tags automatically.',
+        });
+        return;
+      }
+
+      const tagPrefix = category.tagPrefix ? `SMIT-${category.tagPrefix}` : 'SMIT-AST';
+      const assetsToInsert: any[] = [];
+      const baseSerial = data.serialNumber ? data.serialNumber.trim() : null;
+
+      for (let i = 0; i < quantity; i++) {
+        let candidateTag = await getNextSequentialTag(tagPrefix, 6);
+        while (await Asset.findOne({ assetTag: candidateTag })) {
+          candidateTag = await getNextSequentialTag(tagPrefix, 6);
+        }
+        const qrToken = generateOpaqueQRToken();
+        const itemSerial = baseSerial ? (i === 0 ? baseSerial : `${baseSerial}-${i + 1}`) : undefined;
+
+        assetsToInsert.push({
+          ...data,
+          serialNumber: itemSerial,
+          assetTag: candidateTag,
+          qrToken,
+          createdBy: req.user ? new mongoose.Types.ObjectId(req.user._id) : undefined,
+          updatedBy: req.user ? new mongoose.Types.ObjectId(req.user._id) : undefined,
+        });
+      }
+
+      const createdAssets = await Asset.insertMany(assetsToInsert);
+
+      // Create history records
+      const historyDocs = createdAssets.map((a) => ({
+        assetId: a._id,
+        action: AssetHistoryAction.CREATED,
+        performedBy: req.user ? new mongoose.Types.ObjectId(req.user._id) : undefined,
+        performedByName: req.user?.name || 'System',
+        newValues: {
+          assetTag: a.assetTag,
+          status: a.status,
+          condition: a.condition,
+          location: a.location,
+        },
+        remarks: `Asset registered as part of batch allocation (${quantity} units)`,
+      }));
+      await AssetHistory.insertMany(historyDocs);
+
+      const firstTag = createdAssets[0].assetTag;
+      const lastTag = createdAssets[createdAssets.length - 1].assetTag;
+
+      res.status(201).json({
+        success: true,
+        message: `Successfully registered ${quantity} assets in batch (${firstTag} to ${lastTag}).`,
+        data: createdAssets[0],
+        totalCreated: quantity,
+      });
+      return;
+    }
+
+    // 4. Validate Serial Number Uniqueness if provided (Single Item)
     if (data.serialNumber) {
       const existingSerial = await Asset.findOne({
         serialNumber: data.serialNumber.trim(),
@@ -82,7 +154,11 @@ export const createAsset = async (req: Request, res: Response, next: NextFunctio
     let assetTag = data.assetTag?.trim().toUpperCase();
     if (!assetTag) {
       const tagPrefix = category.tagPrefix ? `SMIT-${category.tagPrefix}` : 'SMIT-AST';
-      assetTag = await getNextSequentialTag(tagPrefix, 6);
+      let candidateTag = await getNextSequentialTag(tagPrefix, 6);
+      while (await Asset.findOne({ assetTag: candidateTag })) {
+        candidateTag = await getNextSequentialTag(tagPrefix, 6);
+      }
+      assetTag = candidateTag;
     } else {
       const existingTag = await Asset.findOne({ assetTag });
       if (existingTag) {
@@ -158,21 +234,30 @@ export const getAssets = async (req: Request, res: Response, next: NextFunction)
 
     const filter: Record<string, any> = { isDeleted: false };
 
-    // Enforce Campus Scoping
-    if (req.user && !req.user.isGlobalScope) {
-      if (campusId) {
-        if (!req.user.campusScope.includes(campusId)) {
-          res.status(403).json({
-            success: false,
-            message: `Access Denied: You do not have permission to view assets in campus '${campusId}'.`,
-          });
-          return;
+    // Enforce 3-Tier Scoping: Super Admin, Branch Manager, Employee
+    if (req.user) {
+      if (req.user.role?.name === 'EMPLOYEE' || req.user.role?.name === 'FACULTY_STAFF' || req.user.role?.name === 'STUDENT_USER') {
+        // Employee: Strictly sees only assets currently assigned to them
+        filter['assignedTo.userId'] = new mongoose.Types.ObjectId(req.user._id);
+      } else if (!req.user.isGlobalScope) {
+        // Branch Manager: Strictly scoped to their authorized branch campus
+        if (campusId) {
+          if (!req.user.campusScope.includes(campusId)) {
+            res.status(403).json({
+              success: false,
+              message: `Access Denied: You do not have permission to view assets in campus '${campusId}'.`,
+            });
+            return;
+          }
+          filter['location.campusId'] = new mongoose.Types.ObjectId(campusId);
+        } else {
+          filter['location.campusId'] = {
+            $in: req.user.campusScope.map((id) => new mongoose.Types.ObjectId(id)),
+          };
         }
+      } else if (campusId) {
+        // Super Admin: Can view all or filter by any campus
         filter['location.campusId'] = new mongoose.Types.ObjectId(campusId);
-      } else {
-        filter['location.campusId'] = {
-          $in: req.user.campusScope.map((id) => new mongoose.Types.ObjectId(id)),
-        };
       }
     } else if (campusId) {
       filter['location.campusId'] = new mongoose.Types.ObjectId(campusId);
@@ -188,15 +273,19 @@ export const getAssets = async (req: Request, res: Response, next: NextFunction)
       filter.condition = condition;
     }
 
-    // Full text / regex search across asset tag, name, brand, model, serial
+    // Full text / regex search across asset tag, name, brand, model, serial, and category name
     if (search && search.trim()) {
       const searchRegex = new RegExp(search.trim(), 'i');
+      const matchingCats = await AssetCategory.find({ name: searchRegex }).select('_id');
+      const catIds = matchingCats.map((c) => c._id);
+
       filter.$or = [
         { assetTag: searchRegex },
         { name: searchRegex },
         { brand: searchRegex },
         { modelNumber: searchRegex },
         { serialNumber: searchRegex },
+        ...(catIds.length > 0 ? [{ categoryId: { $in: catIds } }] : []),
       ];
     }
 
@@ -206,7 +295,7 @@ export const getAssets = async (req: Request, res: Response, next: NextFunction)
     const assets = await Asset.find(filter)
       .populate('categoryId', 'name code tagPrefix')
       .populate('location.campusId', 'name code city')
-      .populate('assignedTo.userId', 'name email department')
+      .populate('assignedTo.userId', 'name email department designation')
       .sort({ [sortBy]: sortOrder === 'asc' ? 1 : -1 })
       .skip(skip)
       .limit(limit);
@@ -253,15 +342,26 @@ export const getAssetById = async (req: Request, res: Response, next: NextFuncti
       return;
     }
 
-    // Campus Scoping Check
-    if (req.user && !req.user.isGlobalScope) {
-      const assetCampusId = asset.location.campusId?._id?.toString() || asset.location.campusId?.toString();
-      if (!req.user.campusScope.includes(assetCampusId)) {
-        res.status(403).json({
-          success: false,
-          message: 'Access Denied: You do not have permission to view assets in this campus.',
-        });
-        return;
+    // Scoping enforcement for 3 core roles:
+    if (req.user) {
+      if (req.user.role?.name === 'EMPLOYEE' || req.user.role?.name === 'FACULTY_STAFF' || req.user.role?.name === 'STUDENT_USER') {
+        const assignedUserId = asset.assignedTo?.userId?._id?.toString() || asset.assignedTo?.userId?.toString();
+        if (assignedUserId !== req.user._id.toString()) {
+          res.status(403).json({
+            success: false,
+            message: 'Access Denied: You can only view details of equipment assigned to you.',
+          });
+          return;
+        }
+      } else if (!req.user.isGlobalScope) {
+        const assetCampusId = asset.location.campusId?._id?.toString() || asset.location.campusId?.toString();
+        if (!req.user.campusScope.includes(assetCampusId)) {
+          res.status(403).json({
+            success: false,
+            message: 'Access Denied: You do not have permission to view assets in this campus.',
+          });
+          return;
+        }
       }
     }
 
@@ -662,3 +762,184 @@ export const bulkImportAssets = async (req: Request, res: Response, next: NextFu
     next(error);
   }
 };
+
+/**
+ * @route   GET /api/assets/meta/campuses
+ * @desc    Get campuses accessible by the user (Super Admin gets all, Branch Manager gets theirs)
+ * @access  Private
+ */
+export const getAccessibleCampuses = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    let query: Record<string, any> = { isActive: true };
+    // If not global scope and 'all' is not requested, scope to user's assigned campuses
+    if (req.user && !req.user.isGlobalScope && req.query.all !== 'true') {
+      query._id = { $in: req.user.campusScope.map((id) => new mongoose.Types.ObjectId(id)) };
+    }
+    const campuses = await Campus.find(query).sort({ name: 1 });
+    res.status(200).json({ success: true, data: campuses });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/assets/meta/categories
+ * @desc    Get all active asset categories
+ * @access  Private
+ */
+export const getActiveCategories = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const categories = await AssetCategory.find({ isActive: true }).sort({ name: 1 });
+    res.status(200).json({ success: true, data: categories });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * @route   GET /api/assets/analytics/distribution
+ * @desc    Aggregate analytics breakdown by campus, category, and status
+ * @access  Private
+ */
+export const getAssetAnalytics = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    let campusMatch: Record<string, any> = { isDeleted: false };
+    if (req.user && !req.user.isGlobalScope) {
+      const allowed = (req.user.campusScope || []).map((id) => new mongoose.Types.ObjectId(id));
+      campusMatch['location.campusId'] = { $in: allowed };
+    }
+
+    // 1. By Campus Breakdown
+    const byCampusRaw = await Asset.aggregate([
+      { $match: campusMatch },
+      {
+        $group: {
+          _id: '$location.campusId',
+          count: { $sum: 1 },
+          available: { $sum: { $cond: [{ $eq: ['$status', AssetStatus.AVAILABLE] }, 1, 0] } },
+          inTransit: { $sum: { $cond: [{ $eq: ['$status', AssetStatus.IN_TRANSIT] }, 1, 0] } },
+          assigned: { $sum: { $cond: [{ $eq: ['$status', AssetStatus.ASSIGNED] }, 1, 0] } },
+        },
+      },
+      {
+        $lookup: {
+          from: 'campus',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'campusInfo',
+        },
+      },
+      { $unwind: '$campusInfo' },
+      { $sort: { count: -1 } },
+    ]);
+
+    // 2. By Category Breakdown (with Campus / Branch drilldown)
+    const byCategoryRaw = await Asset.aggregate([
+      { $match: campusMatch },
+      {
+        $group: {
+          _id: {
+            categoryId: '$categoryId',
+            campusId: '$location.campusId',
+          },
+          count: { $sum: 1 },
+          available: { $sum: { $cond: [{ $eq: ['$status', AssetStatus.AVAILABLE] }, 1, 0] } },
+          assigned: { $sum: { $cond: [{ $eq: ['$status', AssetStatus.ASSIGNED] }, 1, 0] } },
+          inTransit: { $sum: { $cond: [{ $eq: ['$status', AssetStatus.IN_TRANSIT] }, 1, 0] } },
+        },
+      },
+      {
+        $lookup: {
+          from: 'campus',
+          localField: '_id.campusId',
+          foreignField: '_id',
+          as: 'campusInfo',
+        },
+      },
+      { $unwind: { path: '$campusInfo', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$_id.categoryId',
+          totalCount: { $sum: '$count' },
+          availableCount: { $sum: '$available' },
+          assignedCount: { $sum: '$assigned' },
+          inTransitCount: { $sum: '$inTransit' },
+          branches: {
+            $push: {
+              campusId: '$_id.campusId',
+              campusName: '$campusInfo.name',
+              campusCode: '$campusInfo.code',
+              city: '$campusInfo.city',
+              count: '$count',
+              available: '$available',
+              assigned: '$assigned',
+              inTransit: '$inTransit',
+            },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: 'assetcategories',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'categoryInfo',
+        },
+      },
+      { $unwind: '$categoryInfo' },
+      { $sort: { totalCount: -1 } },
+    ]);
+
+    // 3. By Status Breakdown
+    const byStatusRaw = await Asset.aggregate([
+      { $match: campusMatch },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { count: -1 } },
+    ]);
+
+    const totalAssets = await Asset.countDocuments(campusMatch);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        totalAssets,
+        byCampus: byCampusRaw.map((c) => ({
+          campusId: c._id,
+          name: c.campusInfo.name,
+          code: c.campusInfo.code,
+          city: c.campusInfo.city,
+          count: c.count,
+          percentage: totalAssets > 0 ? Math.round((c.count / totalAssets) * 100) : 0,
+          available: c.available,
+          inTransit: c.inTransit,
+          assigned: c.assigned,
+        })),
+        byCategory: byCategoryRaw.map((cat) => ({
+          categoryId: cat._id,
+          name: cat.categoryInfo.name,
+          code: cat.categoryInfo.code,
+          tagPrefix: cat.categoryInfo.tagPrefix,
+          count: cat.totalCount,
+          percentage: totalAssets > 0 ? Math.round((cat.totalCount / totalAssets) * 100) : 0,
+          availableCount: cat.availableCount,
+          assignedCount: cat.assignedCount,
+          inTransitCount: cat.inTransitCount,
+          branches: (cat.branches || []).sort((a: any, b: any) => b.count - a.count),
+        })),
+        byStatus: byStatusRaw.map((s) => ({
+          status: s._id,
+          count: s.count,
+          percentage: totalAssets > 0 ? Math.round((s.count / totalAssets) * 100) : 0,
+        })),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

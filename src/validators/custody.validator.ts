@@ -8,9 +8,10 @@ export const assignAssetSchema = z.object({
     .string({ required_error: 'Asset ID is required' })
     .regex(objectIdRegex, 'Invalid Asset ObjectId'),
   userId: z
-    .string({ required_error: 'Target User/Employee ID is required' })
-    .regex(objectIdRegex, 'Invalid User ObjectId'),
+    .string({ required_error: 'Target User / Employee is required' })
+    .min(1, 'Target User is required'),
   expectedReturnDate: z.string().datetime({ message: 'Invalid ISO date string for expected return date' }).optional(),
+  quantity: z.number().int().min(1).optional().default(1),
   remarks: z.string().max(500, 'Remarks cannot exceed 500 characters').optional(),
 });
 

@@ -10,6 +10,7 @@ export const createAssetSchema = z.object({
   modelNumber: z.string().optional(),
   serialNumber: z.string().optional(),
   assetTag: z.string().optional(), // if omitted, auto-generated sequentially
+  quantity: z.number().int().min(1).max(1000).optional().default(1),
   status: z.nativeEnum(AssetStatus).optional().default(AssetStatus.AVAILABLE),
   condition: z.nativeEnum(AssetCondition).optional().default(AssetCondition.NEW),
   location: z.object({

@@ -1,8 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Asset } from '../models/Asset';
 import { User } from '../models/User';
+import { Campus } from '../models/Campus';
+import { Ticket } from '../models/Ticket';
 import { AssetHistory, AssetHistoryAction } from '../models/AssetHistory';
-import { AssetCondition, AssetStatus } from '../constants/enums';
+import { AssetCondition, AssetStatus, TicketCategory, TicketPriority, TicketStatus } from '../constants/enums';
 import { assignAssetSchema, returnAssetSchema } from '../validators/custody.validator';
 
 /**
@@ -61,12 +64,19 @@ export const assignAsset = async (req: Request, res: Response, next: NextFunctio
       return;
     }
 
-    // Verify target employee exists and is active
-    const targetUser = await User.findById(input.userId);
+    // Verify target employee exists and is active (supports ObjectId or email)
+    let targetUser = null;
+    if (mongoose.Types.ObjectId.isValid(input.userId)) {
+      targetUser = await User.findById(input.userId);
+    }
+    if (!targetUser) {
+      targetUser = await User.findOne({ email: input.userId.toLowerCase().trim() });
+    }
+
     if (!targetUser || !targetUser.isActive) {
       res.status(404).json({
         success: false,
-        message: 'Target employee not found or account is deactivated.',
+        message: `Target employee '${input.userId}' not found or account is deactivated.`,
       });
       return;
     }
@@ -108,6 +118,27 @@ export const assignAsset = async (req: Request, res: Response, next: NextFunctio
       },
       remarks: input.remarks || `Assigned to ${targetUser.name} (${targetUser.email})`,
     });
+
+    // Automatically generate an associated IT Ticket for the Custody Handover
+    try {
+      const campus = await Campus.findById(asset.location.campusId);
+      await Ticket.create({
+        requester: req.user!._id,
+        campusId: asset.location.campusId,
+        category: TicketCategory.HARDWARE,
+        priority: TicketPriority.P4_LOW,
+        status: TicketStatus.ASSIGNED,
+        linkedAssetId: asset._id,
+        assignedTechnicianId: req.user!._id,
+        subject: `[Custody Handover] ${asset.assetTag} (${asset.name}) → ${targetUser.name}`,
+        description: `Hardware custody assigned to staff.\n\n• Asset: ${asset.assetTag} - ${asset.name} (${asset.brand} ${asset.modelNumber})\n• Assigned Staff: ${targetUser.name} (${targetUser.designation || 'Staff'} • ${targetUser.department || 'Department'})\n• Branch Campus: ${campus?.name || 'Branch'}\n• Handover Date: ${new Date().toLocaleDateString()}\n• Remarks: ${input.remarks || 'Official assignment'}\n• Authorized By: ${req.user!.name}`,
+        firstResponseDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        targetResolutionDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000),
+        isSlaBreached: false,
+      });
+    } catch (ticketErr) {
+      console.error('Failed to create automated custody ticket:', ticketErr);
+    }
 
     const populatedAsset = await Asset.findById(asset._id)
       .populate('categoryId', 'name code tagPrefix')
@@ -208,6 +239,27 @@ export const returnAsset = async (req: Request, res: Response, next: NextFunctio
       remarks: input.remarks || `Returned to campus stock in condition: ${returnCondition}`,
     });
 
+    // Automatically generate an associated IT Ticket for the Custody Return & Check-in
+    try {
+      const campus = await Campus.findById(asset.location.campusId);
+      await Ticket.create({
+        requester: req.user!._id,
+        campusId: asset.location.campusId,
+        category: TicketCategory.HARDWARE,
+        priority: TicketPriority.P4_LOW,
+        status: TicketStatus.RESOLVED,
+        linkedAssetId: asset._id,
+        assignedTechnicianId: req.user!._id,
+        subject: `[Custody Return] ${asset.assetTag} (${asset.name}) Checked In`,
+        description: `Hardware returned to branch inventory.\n\n• Asset: ${asset.assetTag} - ${asset.name}\n• Returned Condition: ${returnCondition}\n• Campus Location: ${campus?.name || 'Branch'}\n• Inspection Notes: ${input.remarks || 'Standard return check-in verified'}\n• Received By: ${req.user!.name}`,
+        firstResponseDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        targetResolutionDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        isSlaBreached: false,
+      });
+    } catch (ticketErr) {
+      console.error('Failed to create automated return ticket:', ticketErr);
+    }
+
     const populatedAsset = await Asset.findById(asset._id)
       .populate('categoryId', 'name code tagPrefix')
       .populate('location.campusId', 'name code city');
@@ -242,6 +294,27 @@ export const getMyAssets = async (req: Request, res: Response, next: NextFunctio
       success: true,
       count: assets.length,
       data: assets,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get active employees available for custody allocation
+ * GET /api/custody/employees
+ */
+export const getAssignableEmployees = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const users = await User.find({ isActive: true })
+      .select('name email designation department campusScope')
+      .populate('campusScope', 'name code city')
+      .sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      count: users.length,
+      data: users,
     });
   } catch (error) {
     next(error);

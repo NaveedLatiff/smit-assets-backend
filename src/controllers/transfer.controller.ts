@@ -3,7 +3,8 @@ import { Asset } from '../models/Asset';
 import { Campus } from '../models/Campus';
 import { AssetTransfer } from '../models/AssetTransfer';
 import { AssetHistory, AssetHistoryAction } from '../models/AssetHistory';
-import { AssetStatus, TransferStatus } from '../constants/enums';
+import { Ticket } from '../models/Ticket';
+import { AssetStatus, TransferStatus, TicketCategory, TicketPriority, TicketStatus } from '../constants/enums';
 import {
   requestTransferSchema,
   approveTransferSchema,
@@ -93,6 +94,7 @@ export const requestTransfer = async (req: Request, res: Response, next: NextFun
       fromCampusId,
       toCampusId: destCampus._id,
       status: TransferStatus.PENDING,
+      quantity: input.quantity || 1,
       reason: input.reason,
       notes: input.notes,
       requestedBy: req.user!._id,
@@ -113,6 +115,26 @@ export const requestTransfer = async (req: Request, res: Response, next: NextFun
       },
       remarks: `Transfer requested to ${destCampus.name}: ${input.reason}`,
     });
+
+    // Automatically create a linked IT Ticket for the inter-branch transfer
+    try {
+      const originCampus = await Campus.findById(fromCampusId);
+      await Ticket.create({
+        requester: req.user!._id,
+        campusId: fromCampusId,
+        category: TicketCategory.HARDWARE,
+        priority: TicketPriority.P3_MEDIUM,
+        status: TicketStatus.OPEN,
+        linkedAssetId: asset._id,
+        subject: `[Transfer Dispatch] ${asset.assetTag} (${asset.name}) → ${destCampus.name}`,
+        description: `Official branch transfer initiated.\n\n• Transfer ID: ${transfer.transferNumber}\n• Asset: ${asset.assetTag} - ${asset.name} (${asset.brand} ${asset.modelNumber})\n• Origin Campus: ${originCampus?.name || 'Origin'}\n• Destination Campus: ${destCampus.name}\n• Reason: ${input.reason}\n• Requested By: ${req.user!.name}`,
+        firstResponseDeadline: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        targetResolutionDeadline: new Date(Date.now() + 72 * 60 * 60 * 1000),
+        isSlaBreached: false,
+      });
+    } catch (ticketErr) {
+      console.error('Failed to create automated transfer ticket:', ticketErr);
+    }
 
     const populatedTransfer = await AssetTransfer.findById(transfer._id)
       .populate('assetId', 'assetTag name brand modelNumber')
@@ -169,11 +191,18 @@ export const approveTransfer = async (req: Request, res: Response, next: NextFun
     }
 
     if (input.action === 'APPROVE') {
-      transfer.status = TransferStatus.APPROVED;
+      transfer.status = TransferStatus.DISPATCHED;
       transfer.approvedBy = req.user!._id as any;
       transfer.approvedAt = new Date();
+      transfer.dispatchedBy = req.user!._id as any;
+      transfer.dispatchedAt = new Date();
       if (input.notes) transfer.notes = `${transfer.notes || ''}\nApproval Note: ${input.notes}`.trim();
       await transfer.save();
+
+      // Automatically put asset in transit
+      await Asset.findByIdAndUpdate(transfer.assetId, {
+        status: AssetStatus.IN_TRANSIT,
+      });
 
       await AssetHistory.create({
         assetId: transfer.assetId,
@@ -182,9 +211,9 @@ export const approveTransfer = async (req: Request, res: Response, next: NextFun
         performedByName: req.user!.name,
         newValues: {
           transferNumber: transfer.transferNumber,
-          status: TransferStatus.APPROVED,
+          status: TransferStatus.DISPATCHED,
         },
-        remarks: `Transfer ${transfer.transferNumber} approved by ${req.user!.name}`,
+        remarks: `Transfer approved by ${req.user!.name} and placed In-Transit to destination branch`,
       });
     } else {
       transfer.status = TransferStatus.REJECTED;

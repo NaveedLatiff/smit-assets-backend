@@ -8,6 +8,7 @@ export interface IAssetTransfer extends Document {
   fromCampusId: Types.ObjectId;
   toCampusId: Types.ObjectId;
   status: TransferStatus;
+  quantity: number;
   reason: string;
   notes?: string;
 
@@ -67,6 +68,11 @@ const AssetTransferSchema = new Schema<IAssetTransfer>(
       enum: Object.values(TransferStatus),
       default: TransferStatus.PENDING,
       index: true,
+    },
+    quantity: {
+      type: Number,
+      default: 1,
+      min: 1,
     },
     reason: {
       type: String,

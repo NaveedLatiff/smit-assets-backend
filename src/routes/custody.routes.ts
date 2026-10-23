@@ -1,9 +1,16 @@
 import { Router } from 'express';
-import { assignAsset, returnAsset, getMyAssets } from '../controllers/custody.controller';
+import { assignAsset, returnAsset, getMyAssets, getAssignableEmployees } from '../controllers/custody.controller';
 import { authenticate, requirePermissions } from '../middlewares/auth.middleware';
 import { Permission } from '../constants/permissions';
 
 const router = Router();
+
+/**
+ * @route   GET /api/custody/employees
+ * @desc    Get active employees/staff for custody checkout
+ * @access  Private
+ */
+router.get('/employees', authenticate, getAssignableEmployees);
 
 /**
  * @route   POST /api/custody/assign

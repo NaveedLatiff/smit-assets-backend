@@ -5,6 +5,7 @@ import assetRoutes from './asset.routes';
 import custodyRoutes from './custody.routes';
 import transferRoutes from './transfer.routes';
 import ticketRoutes from './ticket.routes';
+import campusRoutes from './campus.routes';
 
 const apiRouter = Router();
 
@@ -16,6 +17,9 @@ apiRouter.use('/auth', authRoutes);
 
 // Mount Asset Master endpoints
 apiRouter.use('/assets', assetRoutes);
+
+// Mount Campus Management (Super Admin) endpoints
+apiRouter.use('/campuses', campusRoutes);
 
 // Mount Custody (Check-In / Check-Out) endpoints
 apiRouter.use('/custody', custodyRoutes);
